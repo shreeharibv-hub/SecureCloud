@@ -6,8 +6,8 @@ app = Flask(__name__)
 
 
 # Database connection
-def get_db_connection():
-    conn = sqlite3.connect("securecloud.db")
+def get_db_connection(db_name="securecloud.db"):
+    conn = sqlite3.connect(db_name)
     return conn
 
 
@@ -73,7 +73,7 @@ def registration():
         conn.commit()
         
     except sqlite3.IntegrityError:
-        return jsonify({"error":"email already exust"}),409
+        return jsonify({"error":"email already exist"}),409
     finally:
         conn.close()
 
@@ -84,6 +84,7 @@ def registration():
 def get_users():
     conn=get_db_connection()
     users=conn.execute(
+        
         "SELECT id,username,email FROM users"
     ).fetchall()
     conn.close()
