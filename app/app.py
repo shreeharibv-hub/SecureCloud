@@ -1,33 +1,9 @@
 from flask import Flask, jsonify, request
 import sqlite3
+from app.database import get_db_connection, init_db
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-
-
-# Database connection
-def get_db_connection(db_name="securecloud.db"):
-    conn = sqlite3.connect(db_name)
-    return conn
-
-
-# Initialize database
-def init_db():
-    conn = get_db_connection()
-
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL
-        )
-    """)
-
-    conn.commit()
-    conn.close()
-
-
 # Health check API
 @app.route("/api/health")
 def health():
