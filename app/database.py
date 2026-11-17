@@ -1,7 +1,13 @@
 import sqlite3
+import os
 
 
-def get_db_connection(db_name="securecloud.db"):
+DB_PATH = "/data/securecloud.db"
+
+
+def get_db_connection(db_name=DB_PATH):
+    os.makedirs(os.path.dirname(db_name), exist_ok=True)
+
     conn = sqlite3.connect(db_name)
     return conn
 

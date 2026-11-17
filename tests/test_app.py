@@ -1,8 +1,8 @@
 import sqlite3
 import pytest
 
-import app.app as app_module
 from app.app import app
+from app.routes import users
 
 
 # Create a fresh test database for every test
@@ -27,10 +27,10 @@ def client(tmp_path, monkeypatch):
 
     # Make Flask use the temporary test database
     monkeypatch.setattr(
-        app_module,
-        "get_db_connection",
-        lambda: sqlite3.connect(db_path)
-    )
+    users,
+    "get_db_connection",
+    lambda: sqlite3.connect(db_path)
+)
 
     return app.test_client()
 
