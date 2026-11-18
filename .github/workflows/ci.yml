@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  build-and-push:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     permissions:
@@ -14,31 +14,38 @@ jobs:
       id-token: write
 
     steps:
+      # 1. Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 2. Set up Python
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
+      # 3. Install dependencies
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      # 4. Run tests
       - name: Run tests
         run: python -m pytest -v
         env:
           PYTHONPATH: .
 
+      # 5. Set up Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # 6. Login to Docker Hub
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # 7. Build and push Docker image
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
@@ -48,30 +55,45 @@ jobs:
             shreeharibv/secure-cloud:latest
             shreeharibv/secure-cloud:${{ github.sha }}
 
-      - name: Debug OIDC claims
-        run: |
-          set -euo pipefail
-
-          TOKEN=$(curl -fsS \
-            -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com" \
-            | jq -r '.value')
-
-          export TOKEN
-
-          python -c '
-          import os, json, base64
-          payload = os.environ["TOKEN"].split(".")[1]
-          payload += "=" * (-len(payload) % 4)
-          claims = json.loads(base64.urlsafe_b64decode(payload))
-          print(json.dumps(
-              {k: claims.get(k) for k in ["iss", "aud", "sub"]},
-              indent=2
-          ))
-          '
-
+      # 8. Authenticate with AWS using OIDC
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           aws-region: ap-south-1
+
+      # 9. Deploy application using AWS SSM
+      - name: Deploy to EC2 using SSM
+        id: deploy
+        run: |
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids i-0e93b1203c081dc02 \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy SecureCloud application" \
+            --parameters 'commands=[
+              "sudo docker pull shreeharibv/secure-cloud:latest",
+              "sudo docker stop securecloud-app || true",
+              "sudo docker rm securecloud-app || true",
+              "sudo docker run -d --name securecloud-app --restart unless-stopped -p 80:5000 -v securecloud-data:/data shreeharibv/secure-cloud:latest",
+              "sleep 5",
+              "curl -f http://localhost/api/health"
+            ]' \
+            --query "Command.CommandId" \
+            --output text)
+
+          echo "COMMAND_ID=$COMMAND_ID" >> "$GITHUB_ENV"
+
+          echo "SSM Command ID: $COMMAND_ID"
+
+      # 10. Wait for deployment completion
+      - name: Verify deployment
+        run: |
+          aws ssm wait command-executed \
+            --command-id "$COMMAND_ID" \
+            --instance-id i-0e93b1203c081dc02
+
+          aws ssm get-command-invocation \
+            --command-id "$COMMAND_ID" \
+            --instance-id i-0e93b1203c081dc02 \
+            --query "StandardOutputContent" \
+            --output text
