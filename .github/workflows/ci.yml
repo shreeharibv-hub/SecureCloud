@@ -51,9 +51,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: |
-            shreeharibv/secure-cloud:latest
-            shreeharibv/secure-cloud:${{ github.sha }}
+          tags: shreeharibv/secure-cloud:${{ github.sha }}
 
       # 8. Authenticate with AWS using OIDC
       - name: Configure AWS credentials
@@ -63,6 +61,7 @@ jobs:
           aws-region: ap-south-1
 
       # 9. Deploy application using AWS SSM
+            # 9. Deploy application using AWS SSM
       - name: Deploy to EC2 using SSM
         id: deploy
         run: |
@@ -71,10 +70,10 @@ jobs:
             --document-name "AWS-RunShellScript" \
             --comment "Deploy SecureCloud application" \
             --parameters 'commands=[
-              "sudo docker pull shreeharibv/secure-cloud:latest",
+              "sudo docker pull shreeharibv/secure-cloud:${{ github.sha }}",
               "sudo docker stop securecloud-app || true",
               "sudo docker rm securecloud-app || true",
-              "sudo docker run -d --name securecloud-app --restart unless-stopped -p 80:5000 -v securecloud-data:/data shreeharibv/secure-cloud:latest",
+              "sudo docker run -d --name securecloud-app --restart unless-stopped -p 80:5000 -v securecloud-data:/data shreeharibv/secure-cloud:${{ github.sha }}",
               "sleep 5",
               "curl -f http://localhost/api/health"
             ]' \
