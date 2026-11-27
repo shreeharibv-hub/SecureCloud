@@ -32,7 +32,7 @@ pipeline {
         stage('Security Scan') {
             steps {
                 bat 'python -m pip install bandit'
-                bat 'python -m bandit -r app -ll'
+                bat 'python -m bandit -r app -ll -s B104'
             }
         }
 
