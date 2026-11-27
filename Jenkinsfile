@@ -24,7 +24,15 @@ pipeline {
 
         stage('Run Unit Tests') {
             steps {
-                bat 'python -m pytest tests/'
+                bat 'if not exist reports mkdir reports'
+                bat 'python -m pytest tests/ --junitxml=reports/test-results.xml'
+            }
+        }
+
+        stage('Security Scan') {
+            steps {
+                bat 'python -m pip install bandit'
+                bat 'python -m bandit -r app -ll'
             }
         }
 
@@ -33,18 +41,12 @@ pipeline {
                 bat 'docker build -t securecloud:latest .'
             }
         }
-        stage('Security Scan') {
-    steps {
-        bat 'python -m pip install bandit'
-        bat 'python -m bandit -r app -ll'
+
+        stage('Archive Artifacts') {
+            steps {
+                archiveArtifacts artifacts: 'reports/*.xml', fingerprint: true
+            }
         }
-    }
-        stage('Run Unit Tests') {
-    steps {
-        bat 'if not exist reports mkdir reports'
-        bat 'python -m pytest tests/ --junitxml=reports/test-results.xml'
-        }
-    }
     }
 
     post {
