@@ -33,6 +33,18 @@ pipeline {
                 bat 'docker build -t securecloud:latest .'
             }
         }
+        stage('Security Scan') {
+    steps {
+        bat 'python -m pip install bandit'
+        bat 'python -m bandit -r app -ll'
+        }
+    }
+        stage('Run Unit Tests') {
+    steps {
+        bat 'if not exist reports mkdir reports'
+        bat 'python -m pytest tests/ --junitxml=reports/test-results.xml'
+        }
+    }
     }
 
     post {
